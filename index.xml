@@ -1,0 +1,143 @@
+<?xml version="1.0" encoding="utf-8"?>
+<index version="1" name="Dax Scripts">
+  <category name="Dax Scripts">
+    <reapack name="Dax Set Crossfade to 15ms.py" type="script" desc="Set Crossfade to 15ms">
+      <version name="1.0" author="Dax Liniere">
+        <source file="Dax Set Crossfade to 15ms.py">https://raw.githubusercontent.com/daxliniere/dax-scripts/main/Scripts/Dax%20Scripts/Dax%20Set%20Crossfade%20to%2015ms.py</source>
+      </version>
+    </reapack>
+    <reapack name="Dax Set Crossfade to 2ms.py" type="script" desc="Set Crossfade to 2ms">
+      <version name="1.0" author="Dax Liniere">
+        <source file="Dax Set Crossfade to 2ms.py">https://raw.githubusercontent.com/daxliniere/dax-scripts/main/Scripts/Dax%20Scripts/Dax%20Set%20Crossfade%20to%202ms.py</source>
+      </version>
+    </reapack>
+    <reapack name="Dax Set Crossfade to 7ms.py" type="script" desc="Set Crossfade to 7ms">
+      <version name="1.0" author="Dax Liniere">
+        <source file="Dax Set Crossfade to 7ms.py">https://raw.githubusercontent.com/daxliniere/dax-scripts/main/Scripts/Dax%20Scripts/Dax%20Set%20Crossfade%20to%207ms.py</source>
+      </version>
+    </reapack>
+    <reapack name="Dax_Implode mono items to stereo items, vertically.py" type="script" desc="Implode mono items to stereo items, vertically">
+      <version name="1.0" author="Dax Liniere">
+        <source file="Dax_Implode mono items to stereo items, vertically.py">https://raw.githubusercontent.com/daxliniere/dax-scripts/main/Scripts/Dax%20Scripts/Dax_Implode%20mono%20items%20to%20stereo%20items%2C%20vertically.py</source>
+      </version>
+    </reapack>
+    <reapack name="Dax_Jump Playback Position back 2 seconds.py" type="script" desc="Jump Playback Position back 2 seconds">
+      <version name="1.0" author="Dax Liniere">
+        <source file="Dax_Jump Playback Position back 2 seconds.py">https://raw.githubusercontent.com/daxliniere/dax-scripts/main/Scripts/Dax%20Scripts/Dax_Jump%20Playback%20Position%20back%202%20seconds.py</source>
+      </version>
+    </reapack>
+    <reapack name="Dax_Jump Playback Position back 5 seconds.py" type="script" desc="Jump Playback Position back 5 seconds">
+      <version name="1.0" author="Dax Liniere">
+        <source file="Dax_Jump Playback Position back 5 seconds.py">https://raw.githubusercontent.com/daxliniere/dax-scripts/main/Scripts/Dax%20Scripts/Dax_Jump%20Playback%20Position%20back%205%20seconds.py</source>
+      </version>
+    </reapack>
+    <reapack name="Dax_mpl_Remove MIDI pan events.lua" type="script" desc="Remove MIDI CC64 (hold pedal)">
+      <version name="1.0" author="juliansader, MPL">
+        <source file="Dax_mpl_Remove MIDI pan events.lua">https://raw.githubusercontent.com/daxliniere/dax-scripts/main/Scripts/Dax%20Scripts/Dax_mpl_Remove%20MIDI%20pan%20events.lua</source>
+      </version>
+    </reapack>
+    <reapack name="Dax_mpl_Remove MIDI volume events.lua" type="script" desc="Remove MIDI CC64 (hold pedal)">
+      <version name="1.0" author="juliansader, MPL">
+        <source file="Dax_mpl_Remove MIDI volume events.lua">https://raw.githubusercontent.com/daxliniere/dax-scripts/main/Scripts/Dax%20Scripts/Dax_mpl_Remove%20MIDI%20volume%20events.lua</source>
+      </version>
+    </reapack>
+    <reapack name="Dax_Transport Play-Stop (with anti-looping safety).LUA" type="script" desc="Transport Play-Stop (with anti-looping safety)">
+      <version name="1.0" author="Dax Liniere">
+        <source file="Dax_Transport Play-Stop (with anti-looping safety).LUA">https://raw.githubusercontent.com/daxliniere/dax-scripts/main/Scripts/Dax%20Scripts/Dax_Transport%20Play-Stop%20(with%20anti-looping%20safety).LUA</source>
+      </version>
+    </reapack>
+    <reapack name="daxliniere_Add item on next track to track selection.lua" type="script" desc="Select N Items On Tracks Below (keep original item selection &amp; track selection)">
+      <version name="1.0" author="adapted for user">
+        <source file="daxliniere_Add item on next track to track selection.lua">https://raw.githubusercontent.com/daxliniere/dax-scripts/main/Scripts/Dax%20Scripts/daxliniere_Add%20item%20on%20next%20track%20to%20track%20selection.lua</source>
+      </version>
+    </reapack>
+    <reapack name="daxliniere_ChatGPT_Cleanup unused sends.lua" type="script" desc="Cleanup unused sends">
+      <version name="1.0" author="Dax Liniere">
+        <source file="daxliniere_ChatGPT_Cleanup unused sends.lua">https://raw.githubusercontent.com/daxliniere/dax-scripts/main/Scripts/Dax%20Scripts/daxliniere_ChatGPT_Cleanup%20unused%20sends.lua</source>
+      </version>
+    </reapack>
+    <reapack name="daxliniere_ChatGPT_Compact selected track FX insert slots.lua" type="script" desc="Compact selected track FX insert slots">
+      <version name="1.0" author="Dax Liniere">
+        <source file="daxliniere_ChatGPT_Compact selected track FX insert slots.lua">https://raw.githubusercontent.com/daxliniere/dax-scripts/main/Scripts/Dax%20Scripts/daxliniere_ChatGPT_Compact%20selected%20track%20FX%20insert%20slots.lua</source>
+      </version>
+    </reapack>
+    <reapack name="daxliniere_ChatGPT_Compact selected track send slots.lua" type="script" desc="Compact selected track send slots">
+      <version name="1.0" author="Dax Liniere">
+        <source file="daxliniere_ChatGPT_Compact selected track send slots.lua">https://raw.githubusercontent.com/daxliniere/dax-scripts/main/Scripts/Dax%20Scripts/daxliniere_ChatGPT_Compact%20selected%20track%20send%20slots.lua</source>
+      </version>
+    </reapack>
+    <reapack name="daxliniere_ChatGPT_Completely dismantle and delete folders.lua" type="script" desc="Completely dismantle all folder tracks; delete empty former folder parents">
+      <version name="1.1" author="Dax Liniere with ChatGPT">
+        <source file="daxliniere_ChatGPT_Completely dismantle and delete folders.lua">https://raw.githubusercontent.com/daxliniere/dax-scripts/main/Scripts/Dax%20Scripts/daxliniere_ChatGPT_Completely%20dismantle%20and%20delete%20folders.lua</source>
+      </version>
+    </reapack>
+    <reapack name="daxliniere_ChatGPT_Cycle mute of selected tracks.lua" type="script" desc="Cycle mute of selected tracks">
+      <version name="1.0" author="Dax Liniere">
+        <source file="daxliniere_ChatGPT_Cycle mute of selected tracks.lua">https://raw.githubusercontent.com/daxliniere/dax-scripts/main/Scripts/Dax%20Scripts/daxliniere_ChatGPT_Cycle%20mute%20of%20selected%20tracks.lua</source>
+      </version>
+    </reapack>
+    <reapack name="daxliniere_ChatGPT_Deselect tracks with MIDI items.lua" type="script" desc="De-select tracks that contain MIDI items">
+      <version name="1.0" author="Dax Liniere with ChatGPT">
+        <source file="daxliniere_ChatGPT_Deselect tracks with MIDI items.lua">https://raw.githubusercontent.com/daxliniere/dax-scripts/main/Scripts/Dax%20Scripts/daxliniere_ChatGPT_Deselect%20tracks%20with%20MIDI%20items.lua</source>
+      </version>
+    </reapack>
+    <reapack name="daxliniere_ChatGPT_Envelope-based Gate.eel" type="script" desc="Envelope-based Gate">
+      <version name="1.0" author="Dax Liniere">
+        <source file="daxliniere_ChatGPT_Envelope-based Gate.eel">https://raw.githubusercontent.com/daxliniere/dax-scripts/main/Scripts/Dax%20Scripts/daxliniere_ChatGPT_Envelope-based%20Gate.eel</source>
+      </version>
+    </reapack>
+    <reapack name="daxliniere_ChatGPT_Explode takes across new child tracks with auto-renaming (multi-track aware), mute source item(s).lua" type="script" desc="Explode takes across new child tracks with auto-renaming (multi-track aware), mute source item(s)">
+      <version name="1.0" author="Dax Liniere">
+        <source file="daxliniere_ChatGPT_Explode takes across new child tracks with auto-renaming (multi-track aware), mute source item(s).lua">https://raw.githubusercontent.com/daxliniere/dax-scripts/main/Scripts/Dax%20Scripts/daxliniere_ChatGPT_Explode%20takes%20across%20new%20child%20tracks%20with%20auto-renaming%20(multi-track%20aware)%2C%20mute%20source%20item(s).lua</source>
+      </version>
+    </reapack>
+    <reapack name="daxliniere_ChatGPT_Explode takes across tracks with auto-renaming (multi-track aware).lua" type="script" desc="Explode takes across tracks with auto-renaming (multi-track aware)">
+      <version name="1.0" author="Dax Liniere">
+        <source file="daxliniere_ChatGPT_Explode takes across tracks with auto-renaming (multi-track aware).lua">https://raw.githubusercontent.com/daxliniere/dax-scripts/main/Scripts/Dax%20Scripts/daxliniere_ChatGPT_Explode%20takes%20across%20tracks%20with%20auto-renaming%20(multi-track%20aware).lua</source>
+      </version>
+    </reapack>
+    <reapack name="daxliniere_ChatGPT_LFO Automation.lua" type="script" desc="LFO Automation">
+      <version name="1.0" author="Dax Liniere">
+        <source file="daxliniere_ChatGPT_LFO Automation.lua">https://raw.githubusercontent.com/daxliniere/dax-scripts/main/Scripts/Dax%20Scripts/daxliniere_ChatGPT_LFO%20Automation.lua</source>
+      </version>
+    </reapack>
+    <reapack name="daxliniere_ChatGPT_Set Townhouse GR meter size and position.lua" type="script" desc="Set Townhouse GR meter size and position">
+      <version name="1.0" author="Dax Liniere">
+        <source file="daxliniere_ChatGPT_Set Townhouse GR meter size and position.lua">https://raw.githubusercontent.com/daxliniere/dax-scripts/main/Scripts/Dax%20Scripts/daxliniere_ChatGPT_Set%20Townhouse%20GR%20meter%20size%20and%20position.lua</source>
+      </version>
+    </reapack>
+    <reapack name="daxliniere_ChatGPT_Set tracks sends' sending-channels (skip bypassed).lua" type="script" desc="Set tracks sends' sending-channels (skip bypassed)">
+      <version name="1.0" author="Dax Liniere">
+        <source file="daxliniere_ChatGPT_Set tracks sends' sending-channels (skip bypassed).lua">https://raw.githubusercontent.com/daxliniere/dax-scripts/main/Scripts/Dax%20Scripts/daxliniere_ChatGPT_Set%20tracks%20sends'%20sending-channels%20(skip%20bypassed).lua</source>
+      </version>
+    </reapack>
+    <reapack name="daxliniere_ChatGPT_Show vertical guideline when using Inline MIDI editor.lua" type="script" desc="Show vertical guideline when using Inline MIDI editor">
+      <version name="1.0" author="Dax Liniere">
+        <source file="daxliniere_ChatGPT_Show vertical guideline when using Inline MIDI editor.lua">https://raw.githubusercontent.com/daxliniere/dax-scripts/main/Scripts/Dax%20Scripts/daxliniere_ChatGPT_Show%20vertical%20guideline%20when%20using%20Inline%20MIDI%20editor.lua</source>
+      </version>
+    </reapack>
+    <reapack name="daxliniere_ChatGPT_Split at time selection and mute.lua" type="script" desc="Split at time selection and mute">
+      <version name="1.0" author="Dax Liniere">
+        <source file="daxliniere_ChatGPT_Split at time selection and mute.lua">https://raw.githubusercontent.com/daxliniere/dax-scripts/main/Scripts/Dax%20Scripts/daxliniere_ChatGPT_Split%20at%20time%20selection%20and%20mute.lua</source>
+      </version>
+    </reapack>
+    <reapack name="daxliniere_ChatGPT_Split MIDI items at notes (remove overlap).lua" type="script" desc="Split MIDI items at notes (remove overlap)">
+      <version name="2.6" author="Dax Liniere with ChatGPT">
+        <source file="daxliniere_ChatGPT_Split MIDI items at notes (remove overlap).lua">https://raw.githubusercontent.com/daxliniere/dax-scripts/main/Scripts/Dax%20Scripts/daxliniere_ChatGPT_Split%20MIDI%20items%20at%20notes%20(remove%20overlap).lua</source>
+      </version>
+    </reapack>
+    <reapack name="daxliniere_Sid_ChatGPT_Close FX hidden by mixer.lua" type="script" desc="Sid ChatGPT Close FX hidden by mixer">
+      <version name="1.0" author="Dax Liniere">
+        <source file="daxliniere_Sid_ChatGPT_Close FX hidden by mixer.lua">https://raw.githubusercontent.com/daxliniere/dax-scripts/main/Scripts/Dax%20Scripts/daxliniere_Sid_ChatGPT_Close%20FX%20hidden%20by%20mixer.lua</source>
+      </version>
+    </reapack>
+    <reapack name="daxliniere-PeIF_Select items with non-1x playrate.lua" type="script" desc="PeIF Select items with non-1x playrate">
+      <version name="1.0" author="Dax Liniere">
+        <source file="daxliniere-PeIF_Select items with non-1x playrate.lua">https://raw.githubusercontent.com/daxliniere/dax-scripts/main/Scripts/Dax%20Scripts/daxliniere-PeIF_Select%20items%20with%20non-1x%20playrate.lua</source>
+      </version>
+    </reapack>
+  </category>
+  <metadata>
+    <description><![CDATA[Custom REAPER scripts by Dax Liniere.]]></description>
+  </metadata>
+</index>

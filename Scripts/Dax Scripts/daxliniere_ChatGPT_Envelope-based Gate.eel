@@ -1,0 +1,781 @@
+// @description Envelope-based Gate
+// @version 1.0
+// @author Dax Liniere
+
+/* 
+   * ReaScript Name: Envelope-based Gate
+   * EEL script for Cockos REAPER
+   * Licence: GPL v3
+   * Version: 1.53
+   * By Dax Liniere 2025
+   * Based on EUGEN2777's Take-based Compressor
+   * RIP Eugen
+   * Coded by ChatGPT v5 (with hundreds of prompts ;) )
+*/
+
+@import inc/AudioFunctions.eel
+@import inc/MiniGui.eel
+@import inc/Presets.eel
+
+#dbg = "";
+#la  = "";
+#VER = "v1.53";
+
+// Gate detector wrapper (keep includes untouched)
+function GateD.SetValues(thresh_db, ratio) ( CompD.SetValues(thresh_db, ratio); );
+function GateD.Apply(x)                    ( CompD.Apply(x); );
+
+proj_change_cnt = -1;
+
+function ProjectChange()
+  local(cur_cnt, changed)
+(
+  cur_cnt = GetProjectStateChangeCount(0);
+  changed = (cur_cnt != proj_change_cnt);
+  changed ? proj_change_cnt = cur_cnt;
+  changed;
+);
+
+function Script.GetPathAndName()
+  local(filename)
+(
+  get_action_context(filename);
+  !match("%s\\%s", filename, #Script.path, #Script.name) ?
+  match("%s/%s", filename, #Script.path, #Script.name);
+);
+
+function LA_Effective_ms()
+(
+  Link.val ? ( Lookahead.val + Attack.val ) : Lookahead.val;
+);
+
+// ----- Floor mapping: top = 0 dB, bottom = −120 dB; first 66% covers 0..−25 dB -----
+function FloorSplit() ( 0.66 );
+
+// map slider value (0..1, 0=bottom, 1=top) → dB
+function Floor_s_to_dB(s)
+  local(q,db,sp)
+(
+  q = FloorSplit();
+  sp = 1 - s; // flip so top=0 dB, bottom=−120 dB
+  sp <= 0 ? db = 0
+  : sp >= 1 ? db = -120
+  : (
+      sp <= q ? ( db = 0 - 25 * (sp / q); )
+              : ( db = -25 - 95 * ((sp - q)/(1 - q)); );
+    );
+  db;
+);
+
+// map dB → slider value (0..1, 0=bottom, 1=top)
+function Floor_dB_to_s(db)
+  local(q,sp,s)
+(
+  q = FloorSplit();
+  db >= 0      ? sp = 0
+  : db <= -120 ? sp = 1
+  : (
+      db >= -25 ? ( sp = q * ((0 - db) / 25); )
+                : ( sp = q + (1 - q) * ((-25 - db) / 95); );
+    );
+  s = 1 - sp; // unflip
+  s;
+);
+
+// GUI
+function CreateControls()
+  local(r,g,b,a)
+(
+  r = 170/255; g = 140/255; b = 90/255; a = 1;
+
+  // Vertical sliders
+  Thresh.DW_New(1,       "Slider", "V",  30,30,24,301, r,g,b,a, "Open",  "",   0, -60, 6, 0.1, 0);
+  CloseThresh.DW_New(17, "Slider", "V",  67,30,26,301, r,g,b,a, "Close", "",  -6, -60, 6, 0.1, 0);
+  Gain.DW_New(2,         "Slider", "V", 487,30,20,301, r,g,b,a, "Out",   "",   0, -24, 18, 0.1, 0);
+
+  // Floor normalized 0..1 (default 0 = −120 dB), at x=446
+  Floor.DW_New(20, "Slider", "V", 446,30,26,301, r,g,b,a, "Floor", "", 0, 0, 1, 0.001, 0);
+
+  Lookahead.DW_New(3, "Slider", "H", 183,40,200,20,  r,g,b,a, "Lookahead", "ms", 0, 0, 100, 0.1, 0);
+
+  Attack.DW_New(4,    "Slider", "H", 183,70,200,20,  r,g,b,a, "Attack",       "ms", 10, 1, 200, 0.1, 0);
+  AtkCurve.DW_New(18, "Slider", "H", 183,89,200,16,  r,g,b,a, "Attack curve", "",   0, -1,   1, 0.01, 0);
+
+  Hold.DW_New(14,     "Slider", "H", 183,117,200,20, r,g,b,a, "Hold",         "ms", 0, 0, 1000, 2, 0);
+
+  Release.DW_New(5,   "Slider", "H", 183,149,200,20, r,g,b,a, "Release",      "ms", 100, 3, 500, 1, 0);
+  RelCurve.DW_New(19, "Slider", "H", 183,168,200,16, r,g,b,a, "Release curve","",   0, -1,   1, 0.01, 0);
+
+  RMSsize.DW_New(7,   "Slider", "H", 183,204,200,20, r,g,b,a, "RMS Window",   "ms", 100, 0,1000, 1, 1);
+
+  // HP/LP knobs (stock “Hz” labels)
+  HPFreq.DW_New(9,  "Knob", "V", 143,308,40,40, r,g,b,a, "Hipass",  "Hz", 80,   0,20000, 1, 1);
+  LPFreq.DW_New(10, "Knob", "V", 213,308,40,40, r,g,b,a, "Lowpass", "Hz", 8500, 1,20000, 1, 1);
+
+  ActEnv.CheckBox_New(11,  283,272,18,18, r,g,b,a, "Activate Envelopes", 0);
+  VisEnv.CheckBox_New(12,  283,293,18,18, r,g,b,a, "Show Envelopes",     0);
+  UpdMode.CheckBox_New(13, 283,315,18,18, r,g,b,a, "Allow RT Update",    0);
+
+  DbgMarks.CheckBox_New(15, 8, 338,18,18, r,g,b,a, "Debug markers", 0);
+
+  Link.CheckBox_New(16, 324,56,18,18, r,g,b,a, "LINK", 0);
+);
+
+// --- Act/Vis helpers (SWS) ---
+function VolEnv_GetActVisState()
+  local(item_cnt, item_idx, item, take, VolEnv, BR_Env,
+        BR_Env, active,visible,armed, inLane,laneHeight, 
+        defShape, minVal,maxVal,centerVal, type, faderScaling,
+        Allactive, AllVisible)   
+(
+  Allactive = AllVisible = 0;
+  item_cnt = CountSelectedMediaItems(0);
+  item_idx = 0;
+  loop(item_cnt,
+    item = GetSelectedMediaItem(0, item_idx);
+    take = GetActiveTake(item);
+    VolEnv = GetTakeEnvelopeByName(take,"Volume");
+    VolEnv && ValidatePtr2(0, VolEnv, "TrackEnvelope*") ? (
+      BR_Env = extension_api("BR_EnvAlloc", VolEnv, 0);
+      extension_api("BR_EnvGetProperties", BR_Env, active, visible, armed, inLane,laneHeight, 
+                    defShape, minVal,maxVal,centerVal, type, faderScaling);
+      active ? AllActive += 1;
+      visible ? AllVisible += 1;
+      extension_api("BR_EnvFree", BR_Env, 0);
+    );
+    item_idx+=1;
+  );
+  AllActive == item_cnt ? ActEnv.val = 1 : ActEnv.val = 0;
+  AllVisible == item_cnt ? VisEnv.val = 1 : VisEnv.val = 0;
+);
+
+function VolEnv_SetActVisState(mode, val)
+  local(item_cnt, item_idx, item, take, VolEnv, BR_Env,
+        BR_Env, active,visible,armed, inLane,laneHeight, 
+        defShape, minVal,maxVal,centerVal, type, faderScaling)   
+(
+  item_cnt = CountSelectedMediaItems(0);
+  item_cnt ? Undo_OnStateChange("Envelope-based Gate, Act-Vis Env");
+  item_idx = 0;
+  loop(item_cnt,
+    item = GetSelectedMediaItem(0, item_idx);
+    take = GetActiveTake(item);
+    VolEnv = GetTakeEnvelopeByName(take,"Volume");
+    VolEnv && ValidatePtr2(0, VolEnv, "TrackEnvelope*") ? (
+      BR_Env = extension_api("BR_EnvAlloc", VolEnv, 0);
+      extension_api("BR_EnvGetProperties", BR_Env, active,visible,armed, inLane,laneHeight, 
+                    defShape, minVal,maxVal,centerVal, type, faderScaling);
+      mode == "act" ? active  = val;
+      mode == "vis" ? visible = val;
+      extension_api("BR_EnvSetProperties", BR_Env, active,visible,armed, inLane,laneHeight, 
+                    defShape, faderScaling);
+      extension_api("BR_EnvFree", BR_Env, 1);
+    ) : (
+      Main_OnCommand(NamedCommandLookup("_S&M_TAKEENV1"), 0);
+      VolEnv = GetTakeEnvelopeByName(take,"Volume");
+    );
+    item_idx+=1;
+  );
+);
+
+// --- Align boundary pins (clip-edge clamps + conditional value equalization)
+function _AlignBoundaryPins(VolEnv, range_start, env_end)
+  local(n, t1,v1, s1,t1n,sel1, t2,v2, s2,t2n,sel2, tn,vn, sn,tnn,snsel, tp,vp, sp,tpp,selp, tiny, eps_space)
+(
+  tiny = 0.000002;      // ~2 µs
+  eps_space = 0.0004;   // 0.4 ms -> coincident
+
+  n = CountEnvelopePoints(VolEnv);
+  n >= 2 ? (
+    // clamp first/last times to edges
+    GetEnvelopePoint(VolEnv, 0, t1, v1, s1, t1n, sel1);
+    abs(t1 - range_start) > tiny && t1 < range_start ? (
+      SetEnvelopePoint(VolEnv, 0, range_start, v1, s1, t1n, sel1);
+      t1 = range_start;
+    );
+
+    GetEnvelopePoint(VolEnv, n-1, tn, vn, sn, tnn, snsel);
+    abs(tn - env_end) > tiny && tn > env_end ? (
+      SetEnvelopePoint(VolEnv, n-1, env_end, vn, sn, tnn, snsel);
+      tn = env_end;
+    );
+
+    // equalize boundary values only if the boundary pair is coincident
+    GetEnvelopePoint(VolEnv, 1, t2, v2, s2, t2n, sel2);
+    abs(t1 - range_start) <= tiny && abs(t2 - t1) <= eps_space ? (
+      SetEnvelopePoint(VolEnv, 0, t1, v2, s1, t1n, sel1);
+    );
+
+    GetEnvelopePoint(VolEnv, n-2, tp, vp, sp, tpp, selp);
+    abs(tn - env_end) <= tiny && abs(tn - tp) <= eps_space ? (
+      SetEnvelopePoint(VolEnv, n-1, tn, vp, sn, tnn, snsel);
+    );
+
+    Envelope_SortPoints(VolEnv);
+  );
+);
+
+// --- Insert with per-segment Bézier / linear and explicit boundary pins
+function VolEnv_Insert(VolEnv, range_start, range_len, srate, envbuf, pnt_cnt)
+  local(LookaheadSec, Gain, env_mode, env_end, i, raw_pos, pos, val, kind, shape, tens, tensA, tensR, eps0,
+        left_pin_set, left_pin_val, right_pin_set, right_pin_val, n, t,v,s,tn, vn, sn, t2n, sel,
+        floor_db, gate_floor, floor_scaled)
+(
+  LookaheadSec = LA_Effective_ms()/1000;
+  Gain         = DB2VAL(Gain.val);
+  env_mode     = GetEnvelopeScalingMode(VolEnv);
+  env_end      = range_start + range_len - LookaheadSec;
+
+  DeleteEnvelopePointRange(VolEnv, range_start-0.0001, env_end+0.0001);
+
+  tensA = AtkCurve.val;  tensA = min(0.99, max(-0.99, tensA));
+  tensR = RelCurve.val;  tensR = min(0.99, max(-0.99, tensR));
+  eps0  = 0.000001;
+
+  left_pin_set = right_pin_set = 0;
+
+  i = 0;
+  loop(pnt_cnt/3,
+    raw_pos = envbuf[i] - LookaheadSec;
+    kind    = floor(envbuf[i+2]);
+
+    // pin attack start to item start; release end to item end, and remember their *values*
+    kind == 1 && raw_pos < range_start ? (
+      pos = range_start;
+      left_pin_val = ScaleToEnvelopeMode(env_mode, envbuf[i+1] * Gain);
+      left_pin_set = 1;
+    ) :
+    kind == 6 && raw_pos > env_end ? (
+      pos = env_end;
+      right_pin_val = ScaleToEnvelopeMode(env_mode, envbuf[i+1] * Gain);
+      right_pin_set = 1;
+    ) : (
+      pos = raw_pos;
+    );
+
+    pos  = max(range_start, min(env_end, pos));
+    val  = ScaleToEnvelopeMode(env_mode, envbuf[i+1] * Gain);
+
+    (kind == 1 || kind == 2) ? (
+      abs(tensA) <= eps0 ? (shape = 0; tens = 0;) : (shape = 5; tens = tensA;);
+    ) :
+    (kind == 5) ? (
+      abs(tensR) <= eps0 ? (shape = 0; tens = 0;) : (shape = 5; tens = tensR;);
+    ) : (
+      shape = 0; tens = 0;
+    );
+
+    InsertEnvelopePoint(VolEnv, pos, val, shape, tens, 0, 1);
+    i += 3;
+  );
+
+  Envelope_SortPoints(VolEnv);
+  _AlignBoundaryPins(VolEnv, range_start, env_end);
+
+  // ---- Boundary value fixes (robust) ----
+  n = CountEnvelopePoints(VolEnv);
+  n >= 2 ? (
+    GetEnvelopePoint(VolEnv, 0, t,  v,  s,  t2n, sel);
+    GetEnvelopePoint(VolEnv, 1, tn, vn, sn, t2n, sel);
+    abs(t - range_start) <= 0.000002 && v > vn ? (
+      SetEnvelopePoint(VolEnv, 0, range_start, vn, s, t2n, sel);
+    );
+  );
+
+  n = CountEnvelopePoints(VolEnv);
+  n >= 1 ? (
+    GetEnvelopePoint(VolEnv, n-1, tn, vn, sn, t2n, sel);
+    abs(tn - env_end) <= 0.000002 ? (
+      floor_db    = Floor_s_to_dB(Floor.val);
+      gate_floor  = DB2VAL(floor_db);
+      floor_scaled = ScaleToEnvelopeMode(env_mode, gate_floor * Gain);
+      SetEnvelopePoint(VolEnv, n-1, env_end, floor_scaled, sn, t2n, sel);
+    );
+  );
+
+  Envelope_SortPoints(VolEnv);
+);
+
+// --- Mixing ---
+function ChanMixing(samplebuf, block_size, n_chans)
+  local(smpl, ch_smpl, chan_sum) 
+(
+  smpl = ch_smpl = chan_sum = 0;
+  n_chans > 1 ? (
+    smpl = 0;
+    loop(block_size,
+      ch_smpl = smpl * n_chans;
+      chan_sum = 0;
+      loop(n_chans, chan_sum += samplebuf[ch_smpl]; ch_smpl+=1; );
+      samplebuf[smpl] = chan_sum/n_chans;
+      smpl+=1; 
+    );
+  );
+);
+
+// --- GO! button
+function GoButton_Draw()
+  local(GO_x,GO_y,GO_w,GO_h,over,down)
+(
+  GO_x = 190; GO_y = 238; GO_w = 186; GO_h = 20;
+  over = mouse_x >= GO_x && mouse_x <= GO_x+GO_w && mouse_y <= GO_y+GO_h && mouse_y >= GO_y;
+  down = (mouse_cap & 1) && !(mouse_last_cap & 1) && over;
+
+  gfx_set(170/255, 140/255, 90/255);
+  gfx_rect(GO_x, GO_y, GO_w, GO_h, 1);
+
+  gfx_set(0,0,0); gfx_x = GO_x + 80; gfx_y = GO_y + 3; gfx_drawstr("GO!");
+  down ? ( RunMain = 1; );
+);
+
+// --- Debug helpers ---
+function Debug_ClearAllTakeMarkers(take)
+  local(i, n)
+(
+  n = GetNumTakeMarkers(take);
+  i = n-1;
+  while(i >= 0)(
+    DeleteTakeMarker(take, i);
+    i -= 1;
+  );
+);
+
+function Debug_Color(kind)
+  local(c)
+(
+  kind == 1 ? c = ColorToNative(120,230, 20) | 16777216; // lime
+  kind == 2 ? c = ColorToNative(255,154,  0) | 16777216; // orange
+  kind == 3 ? c = ColorToNative(255,255,  0) | 16777216; // yellow
+  kind == 4 ? c = ColorToNative(255,  0,255) | 16777216; // magenta
+  kind == 5 ? c = ColorToNative(0,  255,255) | 16777216; // cyan
+  kind == 6 ? c = ColorToNative(255,  0,  0) | 16777216; // red
+  c;
+);
+
+function Debug_AddMarker(take, t_take_srcpos, kind)
+(
+  SetTakeMarker(take, -1, #dbg, t_take_srcpos, Debug_Color(kind));
+);
+
+// --- Core detector/state machine (triplets)
+function VolEnv_Create(take,srate,n_chans, samplebuf,rmsbuf,envbuf,  range_start,
+                       n_blocks, block_size, rest_smples, vol_offs)
+  local(AA, starttime_sec, cur_block, smpl, input, fltr_out, rms_out, env_out, 
+        trig, last_trig, pnt_cnt, toffs,
+        floor_db, gate_floor, lookahead_sec,
+        gate_state, gate_val, att_smpls, rel_smpls, hold_smpls,
+        hold_cnt, phase_cnt, cur_val,
+        open_dB, close_dB, level_dB,
+        start_offs)
+(
+  floor_db     = Floor_s_to_dB(Floor.val);
+  gate_floor   = DB2VAL(floor_db);
+
+  lookahead_sec = LA_Effective_ms()/1000;
+  att_smpls     = ceil(max(Attack.val,  0)/1000 * srate);
+  rel_smpls     = ceil(max(Release.val, 0)/1000 * srate);
+  hold_smpls    = ceil((max(Hold.val,0) + LA_Effective_ms())/1000 * srate);
+
+  open_dB  = Thresh.val - vol_offs;
+  close_dB = (CloseThresh.val > Thresh.val ? Thresh.val : CloseThresh.val) - vol_offs;
+
+  gate_state = 0; gate_val = gate_floor;
+  hold_cnt = 0; phase_cnt = 0; last_trig = 0; pnt_cnt = 0;
+
+  AA = CreateTakeAudioAccessor(take);
+  starttime_sec = range_start;
+  start_offs = GetMediaItemTakeInfo_Value(take, "D_STARTOFFS");
+
+  cur_block = 0;
+  loop(n_blocks+1,
+    cur_block == n_blocks ? block_size = rest_smples;
+    memset(0, 0, 65536);
+    GetAudioAccessorSamples(AA, srate, n_chans, starttime_sec, block_size, samplebuf);
+    ChanMixing(samplebuf, block_size, n_chans);
+
+    smpl=0;
+    loop(block_size,
+      input = samplebuf[smpl];
+      fltr_out = LP.FilterB.Apply(input);
+      fltr_out = HP.FilterB.Apply(fltr_out);
+
+      rms_out = RMSFollower.Apply(fltr_out);
+      env_out = EnvFollower.Apply(rms_out);
+
+      level_dB = VAL2DB(max(env_out, 0.000000000001));
+      trig = last_trig;
+      level_dB >= open_dB  ? (trig = 1;);
+      level_dB <= close_dB ? (trig = 0;);
+
+      trig != last_trig ? (
+        trig ? (
+          gate_state == 3 ? (
+            cur_val = 1 - ((rel_smpls > 0) ? (phase_cnt / rel_smpls) : 1);
+            cur_val = max(cur_val, gate_floor);
+            gate_state = 1; gate_val = cur_val; phase_cnt = 0;
+            toffs = -1;
+            envbuf[pnt_cnt]   = starttime_sec + (smpl + toffs)/srate; // ATTACK_RESTART
+            envbuf[pnt_cnt+1] = cur_val;
+            envbuf[pnt_cnt+2] = 2;
+            pnt_cnt += 3;
+            DbgMarks.val ? ( sprintf(#dbg,"ATTACK_RESTART");
+              Debug_AddMarker(take, start_offs + starttime_sec + (smpl + toffs)/srate - lookahead_sec, 2);
+            );
+          ) :
+          gate_state == 2 ? (
+            hold_cnt = 0;
+          ) : (
+            gate_state = 1; gate_val = gate_floor; phase_cnt = 0;
+            toffs = -1;
+            envbuf[pnt_cnt]   = starttime_sec + (smpl + toffs)/srate; // ATTACK_START_FLOOR
+            envbuf[pnt_cnt+1] = gate_floor;
+            envbuf[pnt_cnt+2] = 1;
+            pnt_cnt += 3;
+            DbgMarks.val ? ( sprintf(#dbg,"ATTACK_START_FLOOR");
+              Debug_AddMarker(take, start_offs + starttime_sec + (smpl + toffs)/srate - lookahead_sec, 1);
+            );
+          );
+        ) : (
+          (gate_state == 1 || gate_state == 2) ? (
+            gate_state = 2; hold_cnt = 0; phase_cnt = 0;
+            (DbgMarks.val && Hold.val > 0) ? (
+              sprintf(#dbg,"HOLD_START");
+              envbuf[pnt_cnt]   = starttime_sec + smpl/srate; 
+              envbuf[pnt_cnt+1] = 1;
+              envbuf[pnt_cnt+2] = 4;
+              pnt_cnt += 3;
+              Debug_AddMarker(take, start_offs + starttime_sec + smpl/srate - lookahead_sec, 4);
+            ) : 0;
+          ) : 0;
+        );
+        last_trig = trig;
+      ) : 0;
+
+      gate_state == 1 ? (
+        phase_cnt += 1;
+        phase_cnt >= att_smpls ? (
+          gate_val = 1; gate_state = 2;
+          envbuf[pnt_cnt]   = starttime_sec + smpl/srate; 
+          envbuf[pnt_cnt+1] = 1;
+          envbuf[pnt_cnt+2] = 3; // ATTACK_END
+          pnt_cnt += 3;
+          DbgMarks.val ? ( sprintf(#dbg,"ATTACK_END");
+            Debug_AddMarker(take, start_offs + starttime_sec + smpl/srate - lookahead_sec, 3);
+          );
+          phase_cnt = 0;
+        ) : 0;
+      ) : 0;
+
+      gate_state == 2 ? (
+        trig ? ( hold_cnt = 0; ) : (
+          hold_cnt += 1;
+          hold_cnt >= hold_smpls ? (
+            gate_state = 3; phase_cnt = 0;
+            envbuf[pnt_cnt]   = starttime_sec + smpl/srate; 
+            envbuf[pnt_cnt+1] = 1;
+            envbuf[pnt_cnt+2] = 5; // RELEASE_START
+            pnt_cnt += 3;
+            DbgMarks.val ? ( sprintf(#dbg,"RELEASE_START");
+              Debug_AddMarker(take, start_offs + starttime_sec + smpl/srate - lookahead_sec, 5);
+            );
+          ) : 0;
+        );
+      ) : 0;
+
+      gate_state == 3 ? (
+        phase_cnt += 1;
+        phase_cnt >= rel_smpls ? (
+          gate_val = gate_floor; gate_state = 0;
+          envbuf[pnt_cnt]   = starttime_sec + smpl/srate; 
+          envbuf[pnt_cnt+1] = gate_floor;
+          envbuf[pnt_cnt+2] = 6; // RELEASE_END
+          pnt_cnt += 3;
+          DbgMarks.val ? ( sprintf(#dbg,"RELEASE_END");
+            Debug_AddMarker(take, start_offs + starttime_sec + smpl/srate - lookahead_sec, 6);
+          );
+          phase_cnt = 0;
+        ) : 0;
+      ) : 0;
+
+      smpl+=1;
+    );
+
+    starttime_sec+=block_size/srate;
+    cur_block+=1;
+  );
+  
+  DestroyAudioAccessor(AA);
+  pnt_cnt;
+);
+
+// --- Rebuild ---
+function RebuildVolEnvelope(item, take, srate, n_chans, VolEnv)
+  local(item_start, item_len, sel_start, sel_end, playrate, range_start, range_len, range_len_smpls, 
+        block_size, n_blocks, rest_smples,
+        samplebuf, envbuf, rmsbuf, pnt_cnt,
+        take_vol, item_vol, vol_offs,
+        orig_item_len)
+( 
+  item_start = GetMediaItemInfo_Value(item, "D_POSITION");
+  item_len   = GetMediaItemInfo_Value(item, "D_LENGTH");
+  sel_start = item_start; sel_end = item_start + item_len; 
+   
+  sel_end - sel_start > 0 ? ( 
+    playrate = GetMediaItemTakeInfo_Value(take, "D_PLAYRATE");
+    playrate <= 0 ? playrate = 1 : 0;
+    orig_item_len = item_len;
+
+    playrate != 1 ? (
+      SetMediaItemTakeInfo_Value(take, "D_PLAYRATE", 1);
+      SetMediaItemInfo_Value(item, "D_LENGTH", orig_item_len*playrate);
+    );
+
+    range_start = (sel_start-item_start)*playrate;
+    range_len   = (sel_end + LA_Effective_ms()/1000 - sel_start)*playrate;
+
+    range_len_smpls = floor(range_len*srate);
+    block_size = floor(65536/n_chans);
+    n_blocks   = floor(range_len_smpls/block_size);
+    rest_smples= range_len_smpls - block_size*n_blocks;
+    take_vol   = GetMediaItemTakeInfo_Value(take, "D_VOL");
+    item_vol   = GetMediaItemInfo_Value(item, "D_VOL");
+    vol_offs   = VAL2DB(take_vol*item_vol);
+    
+    samplebuf = 0; rmsbuf = 65536; envbuf = 65536 + srate;
+
+    LP.FilterB.SetValues(0, LPFreq.val, srate);
+    HP.FilterB.SetValues(1, HPFreq.val, srate);
+    RMSFollower.SetValues(rmsbuf, RMSsize.val, srate);
+    EnvFollower.SetValues(1, 1, srate);
+
+    GateD.SetValues(Thresh.val - vol_offs, 20);
+    
+    Debug_ClearAllTakeMarkers(take);
+    pnt_cnt = VolEnv_Create(take,srate,n_chans, samplebuf,rmsbuf,envbuf,
+                            range_start, n_blocks, block_size, rest_smples, vol_offs);
+    VolEnv_Insert(VolEnv, range_start, range_len, srate, envbuf, pnt_cnt);
+
+    playrate != 1 ? (
+      SetMediaItemTakeInfo_Value(take, "D_PLAYRATE", playrate);
+      SetMediaItemInfo_Value(item, "D_LENGTH", orig_item_len);
+    );
+    UpdateTimeline();
+    UpdateArrange(); 
+  );  
+);
+
+// --- Presets (store floor as dB; convert on load)
+function GetPreset()
+  local(floor_db)
+(
+  floor_db = Floor_s_to_dB(Floor.val);
+  sprintf(#, "%f %f %f %f %f %f %f %f %f %f %f %f %f %f",
+    Thresh.val, CloseThresh.val, Lookahead.val, 
+    HPFreq.val, LPFreq.val, Attack.val, Release.val,
+    RMSsize.val, Gain.val, Hold.val, Link.val, AtkCurve.val, RelCurve.val, floor_db
+  );
+);
+
+function SetPreset(preset_data)
+  local(v1,v2,v3,v4,v5,v6,v7,v8,v9,v10,v11,v12,v13,v14, s_norm)
+(
+  match("%f %f %f %f %f %f %f %f %f %f %f %f %f %f",
+        preset_data, v1,v2,v3,v4,v5,v6,v7,v8,v9,v10,v11,v12,v13,v14) ? (
+    Thresh.DW_SetVal(v1); CloseThresh.DW_SetVal(v2); Lookahead.DW_SetVal(v3);
+    HPFreq.DW_SetVal(v4); LPFreq.DW_SetVal(v5); Attack.DW_SetVal(v6);
+    Release.DW_SetVal(v7); RMSsize.DW_SetVal(v8); Gain.DW_SetVal(v9);
+    Hold.DW_SetVal(v10);  Link.val = v11 ? 1 : 0;
+    AtkCurve.DW_SetVal(v12); RelCurve.DW_SetVal(v13);
+
+    s_norm = Floor_dB_to_s(v14);
+    Floor.DW_SetVal(s_norm);
+  );
+);
+
+function Presets() local(preset_data)
+(
+  Presets.MenuDraw() ? (
+    this.action == "Load" ? (
+      preset_data = Presets.Load(this.name);
+      SetPreset(preset_data);
+      Undo_OnStateChange("Envelope-based Gate");
+      RunMain = 1;
+    );
+    this.action == "Save" ? (
+      preset_data = GetPreset();
+      Presets.Save(this.name, preset_data); 
+    );
+    this.action == "Rename" ? Presets.RenameOrDelete(this.curpresetname, this.name);
+    this.action == "Delete" ? Presets.RenameOrDelete(this.name, "");
+  );
+);
+
+function MAIN()
+  local(item_cnt, item_idx, item, take, PCM_source, srate, n_chans, VolEnv)  
+( 
+  VolEnv_SetActVisState("act", 1);
+  VolEnv_SetActVisState("vis", 1);
+
+  start_time = time_precise();
+  item_cnt = CountSelectedMediaItems(0);
+  item_idx = 0;
+  loop(item_cnt,
+    item = GetSelectedMediaItem(0, item_idx);
+    take = GetActiveTake(item);
+    PCM_source = GetMediaItemTake_Source(take);
+    srate = GetMediaSourceSampleRate(PCM_source);
+    n_chans = GetMediaSourceNumChannels(PCM_source);
+    VolEnv = GetTakeEnvelopeByName(take,"Volume");
+    VolEnv && ValidatePtr2(0, VolEnv, "TrackEnvelope*") && srate ? (
+      RebuildVolEnvelope(item, take, srate, n_chans, VolEnv);
+    );
+    item_idx+=1;
+  );
+  proc_time_ms  = (time_precise() - start_time)*1000;
+);
+
+function DebugActionButton_Draw()
+  local(Bx,By,Bw,Bh,over,down)
+(
+  Bx = 283; By = 341; Bw = 130; Bh = 18; // under UpdMode
+  over = mouse_x >= Bx && mouse_x <= Bx+Bw && mouse_y >= By && mouse_y <= By+Bh;
+  down = (mouse_cap & 1) && !(mouse_last_cap & 1) && over;
+
+//  gfx_set(170/255, 140/255, 90/255); gfx_rect(Bx, By, Bw, Bh, 1);
+//  gfx_set(0,0,0); gfx_x = Bx + 8; gfx_y = By + 2; gfx_drawstr("Show threshold");
+//  down ? Main_OnCommand(41208, 0);
+);
+
+function Draw_Controls()
+  local(floor_db, fx, db_round, db_clamped, txt_w, txt_h, slider_w, cx)
+(
+  ProjectChange() ? VolEnv_GetActVisState(); 
+  ActEnv.CheckBox_Draw();
+  VisEnv.CheckBox_Draw();
+  UpdMode.CheckBox_Draw();
+
+  Thresh.DW_Draw();
+  CloseThresh.DW_Draw();
+  CloseThresh.val > Thresh.val ? CloseThresh.DW_SetVal(Thresh.val) : 0;
+
+  LPFreq.DW_Draw();
+  HPFreq.DW_Draw();
+
+  Lookahead.DW_Draw();
+  Link.CheckBox_Draw();
+  Link.isChanged ? ( Undo_OnStateChange("Envelope-based Gate - Link toggle"); RunMain = 1; );
+
+  Attack.DW_Draw();
+  AtkCurve.DW_Draw();
+  Hold.DW_Draw();
+  Release.DW_Draw();
+  RelCurve.DW_Draw();
+
+  RMSsize.DW_Draw();
+  Gain.DW_Draw();
+
+  // Floor slider + integer label (dynamic centering)
+  floor_db = Floor_s_to_dB(Floor.val);
+  Floor.DW_Draw();
+
+  fx = Floor.x; fx <= 0 ? fx = 446;
+  gfx_set(20/255, 20/255, 20/255);      // #141414
+  gfx_rect(fx - 10, 10, 48, 20, 1);     // mask
+
+  db_clamped = min(0, max(floor_db, -120));
+  db_round   = db_clamped >= 0 ? floor(db_clamped + 0.5)
+                               : -floor(-db_clamped + 0.5);
+  sprintf(#tmp, "%d", db_round);
+
+  gfx_measurestr(#tmp, txt_w, txt_h);
+  slider_w = 26;
+  cx = fx + slider_w*0.5 - txt_w*0.5;
+
+  gfx_set(170/255,140/255,90/255);
+  gfx_x = cx; gfx_y = 17;
+  gfx_drawstr(#tmp);
+
+  GoButton_Draw();
+  DebugActionButton_Draw();
+  
+  UpdMode.val ? (
+    Thresh.isChanged || CloseThresh.isChanged || Lookahead.isChanged || 
+    HPFreq.isChanged || LPFreq.isChanged ||
+    Attack.isChanged || AtkCurve.isChanged || Hold.isChanged ||
+    Release.isChanged || RelCurve.isChanged ||
+    RMSsize.isChanged || Gain.isChanged || Link.isChanged ||
+    Floor.isChanged ? ( RunMain = 1; );
+  ); 
+  
+  Thresh.isReleased || CloseThresh.isReleased || Lookahead.isReleased || 
+  HPFreq.isReleased || LPFreq.isReleased ||
+  Attack.isReleased || AtkCurve.isReleased || Hold.isReleased ||
+  Release.isReleased || RelCurve.isReleased ||
+  RMSsize.isReleased || Gain.isReleased || Link.isReleased ||
+  Floor.isReleased ? (
+    Undo_OnStateChange("Envelope-based Gate");
+    RunMain = 1;
+  );
+  
+  UpdMode.val ? (
+    UpdMode.r = proc_time_ms < 150 ? 0.667 : 1;
+    UpdMode.lbl = sprintf(#, "%s(%d %s)", "RT Update", proc_time_ms, "ms");
+  ) : (
+    UpdMode.r = 0.667;
+    UpdMode.lbl = "Allow RT Update";
+  ); 
+
+  // Effective Lookahead
+  gfx_set(170/255,140/255,90/255);
+  sprintf(#la, "(%g ms)", LA_Effective_ms());
+  gfx_x = 384; gfx_y = 58;
+  gfx_drawstr(#la);
+
+  // Version bottom-left
+  gfx_set(170/255,140/255,90/255);
+  gfx_x = 8; gfx_y = gfx_h - 16;
+  gfx_drawstr(#VER);
+
+  // Debug checkbox right of version
+  gfx_set(170/255,140/255,90/255);
+  gfx_x = 0; gfx_y = 0;
+  gfx_measurestr(#VER, ver_w, ver_h);
+  DbgMarks.x = 8 + ver_w + 12;
+  DbgMarks.y = gfx_h - 22;
+  DbgMarks.CheckBox_Draw();
+);
+
+// Window size
+function gui.init() instance(x, y, w, h, dock, font1)
+( 
+  x = 160; y = 500; w = 540; h = 400; dock = 0; 
+  gfx_init("Envelope-based Gate",w,h,dock,x,y);
+  gfx_clear = 0x141414;
+  font1 = 1; font1.name = "Verdana"; font1.sz = 13; 
+  gfx_setfont(font1, font1.name, font1.sz);
+  DevMode = 0; init_state = 1;
+);
+
+function mainloop()
+(
+  GetMouseState();
+  Draw_Controls();
+  Presets();
+  
+  RunMain ? ( MAIN(); RunMain = 0; RunMain_cnt+=1; ); 
+  
+  SetMouseLastState();
+  gfx_update();
+  gfx_char = gfx_getchar();
+  gfx_char == 27 ? gfx_quit();
+  gfx_char==32 ? Main_OnCommand(40044, 0);
+  gfx_char >= 0 ? defer("mainloop();");
+);
+
+// Boot
+gui.init();
+CreateControls();
+Script.GetPathAndName();
+presets_path = sprintf(#, "%s/%s", #Script.path, "Envelope-based Gate.presets");
+Presets.MenuInit(138,8,280,20, 0x141414, 0xAA8C5A, presets_path);
+mainloop();
