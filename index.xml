@@ -102,7 +102,7 @@
       </version>
     </reapack>
     <reapack name="daxliniere_ChatGPT_Offset markers by time selection.lua" type="script" desc="Offset markers by time selection">
-      <version name="1.1" author="Dax Liniere">
+      <version name="1.2" author="Dax Liniere">
         <source file="daxliniere_ChatGPT_Offset markers by time selection.lua">https://raw.githubusercontent.com/daxliniere/dax-scripts/main/Scripts/Dax%20Scripts/daxliniere_ChatGPT_Offset%20markers%20by%20time%20selection.lua</source>
       </version>
     </reapack>
