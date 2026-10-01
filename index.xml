@@ -101,6 +101,11 @@
         <source file="daxliniere_ChatGPT_LFO Automation.lua">https://raw.githubusercontent.com/daxliniere/dax-scripts/main/Scripts/Dax%20Scripts/daxliniere_ChatGPT_LFO%20Automation.lua</source>
       </version>
     </reapack>
+    <reapack name="daxliniere_ChatGPT_Offset markers by time selection.lua" type="script" desc="Offset markers by time selection">
+      <version name="1.1" author="Dax Liniere">
+        <source file="daxliniere_ChatGPT_Offset markers by time selection.lua">https://raw.githubusercontent.com/daxliniere/dax-scripts/main/Scripts/Dax%20Scripts/daxliniere_ChatGPT_Offset%20markers%20by%20time%20selection.lua</source>
+      </version>
+    </reapack>
     <reapack name="daxliniere_ChatGPT_Set Townhouse GR meter size and position.lua" type="script" desc="Set Townhouse GR meter size and position">
       <version name="1.0" author="Dax Liniere">
         <source file="daxliniere_ChatGPT_Set Townhouse GR meter size and position.lua">https://raw.githubusercontent.com/daxliniere/dax-scripts/main/Scripts/Dax%20Scripts/daxliniere_ChatGPT_Set%20Townhouse%20GR%20meter%20size%20and%20position.lua</source>
