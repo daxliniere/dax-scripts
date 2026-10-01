@@ -1,6 +1,6 @@
 --[[
   @description Offset markers by time selection
-  @version 1.1
+  @version 1.2
   @author Dax Liniere / ChatGPT
   @about
     Offsets project markers and regions in selected ruler lanes by the
@@ -213,7 +213,11 @@ local function perform_offset()
                     "D_ENDPOS"
                 )
 
-            local lane_number = math.floor(
+            local lane_number
+            local is_region
+            local _, guid
+
+            lane_number = math.floor(
                 reaper.GetRegionOrMarkerInfo_Value(
                     proj,
                     marker,
@@ -221,10 +225,27 @@ local function perform_offset()
                 )
             )
 
+            is_region =
+                reaper.GetRegionOrMarkerInfo_Value(
+                    proj,
+                    marker,
+                    "B_ISREGION"
+                ) ~= 0
+
+            _, guid =
+                reaper.GetSetRegionOrMarkerInfo_String(
+                    proj,
+                    marker,
+                    "GUID",
+                    "",
+                    false
+                )
+
             if start_pos >= threshold
             and lane_is_enabled(lane_number) then
                 changes[#changes + 1] = {
-                    marker = marker,
+                    guid = guid,
+                    is_region = is_region,
                     start_pos = start_pos + offset,
                     end_pos = end_pos + offset
                 }
@@ -240,19 +261,76 @@ local function perform_offset()
     reaper.PreventUIRefresh(1)
 
     for _, change in ipairs(changes) do
-        reaper.SetRegionOrMarkerInfo_Value(
-            proj,
-            change.marker,
-            "D_STARTPOS",
-            change.start_pos
-        )
+        local marker
 
-        reaper.SetRegionOrMarkerInfo_Value(
-            proj,
-            change.marker,
-            "D_ENDPOS",
-            change.end_pos
-        )
+        marker =
+            reaper.GetRegionOrMarker(
+                proj,
+                -1,
+                change.guid
+            )
+
+        if marker then
+            if change.is_region then
+                -- Preserve a valid region at every intermediate write.
+                -- When moving later, extend the end first.
+                -- When moving earlier, move the start first.
+                if offset > 0 then
+                    reaper.SetRegionOrMarkerInfo_Value(
+                        proj,
+                        marker,
+                        "D_ENDPOS",
+                        change.end_pos
+                    )
+
+                    marker =
+                        reaper.GetRegionOrMarker(
+                            proj,
+                            -1,
+                            change.guid
+                        )
+
+                    if marker then
+                        reaper.SetRegionOrMarkerInfo_Value(
+                            proj,
+                            marker,
+                            "D_STARTPOS",
+                            change.start_pos
+                        )
+                    end
+                else
+                    reaper.SetRegionOrMarkerInfo_Value(
+                        proj,
+                        marker,
+                        "D_STARTPOS",
+                        change.start_pos
+                    )
+
+                    marker =
+                        reaper.GetRegionOrMarker(
+                            proj,
+                            -1,
+                            change.guid
+                        )
+
+                    if marker then
+                        reaper.SetRegionOrMarkerInfo_Value(
+                            proj,
+                            marker,
+                            "D_ENDPOS",
+                            change.end_pos
+                        )
+                    end
+                end
+            else
+                reaper.SetRegionOrMarkerInfo_Value(
+                    proj,
+                    marker,
+                    "D_STARTPOS",
+                    change.start_pos
+                )
+            end
+        end
     end
 
     reaper.PreventUIRefresh(-1)
